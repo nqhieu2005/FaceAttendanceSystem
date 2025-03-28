@@ -1,226 +1,305 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
 import customtkinter as ctk
-from PIL import Image, ImageTk
-import os
+from tkinter import ttk, messagebox, filedialog
 from pymongo import MongoClient
-from datetime import datetime
-from ttkthemes import ThemedStyle
+from datetime import datetime, timedelta  # Added timedelta import
+import os
+import threading  # Added threading import
+
+# Set the default theme and appearance
+ctk.set_appearance_mode("Light")  # Modes: "System" (standard), "Dark", "Light"
+ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
 class FaceAttendanceSystem:
     def __init__(self, root):
         self.root = root
-        self.root.title("Hệ thống Điểm danh Khuôn mặt")
-        self.root.geometry("1200x800")
+        self.root.title("Face Attendance Management System")
+        self.root.geometry("1366x768")
         
-        # Set theme and styles
-        self.style = ThemedStyle(self.root)
-        self.style.set_theme("arc")
-        
-        # Define color scheme
+        # Color Palette
         self.colors = {
-            'bg': '#f0f0f0',
-            'button': '#2196f3',
-            'button_hover': '#1976d2',
-            'header': '#1565c0',
-            'text': '#333333'
+            'primary': '#2196F3',
+            'secondary': '#1565c0',
+            'background': '#f4f6f9',
+            'text_dark': '#333333',
+            'text_light': '#FFFFFF',
+            'accent': '#4CAF50'
         }
-        
-        self.root.configure(bg=self.colors['bg'])
 
-        # MongoDB connection
-        self.client = MongoClient('mongodb://localhost:27017/')
-        self.db = self.client['face_attendance']
-        self.attendance_col = self.db['attendance']
-
-        # Create main container
-        self.create_main_container()
-        self.create_header()
-        self.create_navigation()
-        self.create_attendance_table()
-        self.create_status_bar()
-
-    def create_main_container(self):
-        self.main_container = ttk.Frame(self.root)
-        self.main_container.pack(fill='both', expand=True, padx=20, pady=20)
-
-        # Configure styles
-        self.style.configure(
-            'Header.TLabel',
-            font=('Helvetica', 28, 'bold'),
-            foreground=self.colors['header'],
-            background=self.colors['bg']
-        )
+        # Configure root window
+        self.root.configure(bg=self.colors['background'])
         
-        self.style.configure(
-            'Navigation.TButton',
-            font=('Helvetica', 12),
-            padding=15
-        )
-
-    def create_header(self):
-        header_frame = ttk.Frame(self.main_container)
-        header_frame.pack(fill='x', pady=(0, 20))
-        
-        title = ttk.Label(
-            header_frame,
-            text="HỆ THỐNG ĐIỂM DANH KHUÔN MẶT",
-            style='Header.TLabel'
-        )
-        title.pack()
-
-    def create_navigation(self):
-        nav_frame = ttk.Frame(self.main_container)
-        nav_frame.pack(fill='x', pady=(0, 20))
-        
-        # Create modern buttons using customtkinter
-        button_style = {
-            'font': ('Helvetica', 12),
-            'corner_radius': 10,
-            'height': 40,
-            'width': 200,
-            'fg_color': self.colors['button'],
-            'hover_color': self.colors['button_hover']
-        }
-        
-        self.add_student_btn = ctk.CTkButton(
-            nav_frame,
-            text="Thêm Sinh Viên",
-            command=self.open_add_student,
-            **button_style
-        )
-        self.add_student_btn.pack(side='left', padx=10)
-        
-        self.attendance_btn = ctk.CTkButton(
-            nav_frame,
-            text="Điểm Danh",
-            command=self.open_attendance,
-            **button_style
-        )
-        self.attendance_btn.pack(side='left', padx=10)
-        
-        self.view_attendance_btn = ctk.CTkButton(
-            nav_frame,
-            text="Xem Danh Sách Điểm Danh",
-            command=self.show_attendance_list,
-            **button_style
-        )
-        self.view_attendance_btn.pack(side='left', padx=10)
-
-    def create_attendance_table(self):
-        self.attendance_frame = ttk.Frame(self.main_container)
-        self.attendance_frame.pack(fill='both', expand=True, pady=10)
-        
-        # Configure Treeview style
-        self.style.configure(
-            'Treeview',
-            background='white',
-            foreground=self.colors['text'],
-            rowheight=30,
-            fieldbackground='white',
-            font=('Helvetica', 10)
-        )
-        
-        self.style.configure(
-            'Treeview.Heading',
-            font=('Helvetica', 11, 'bold')
-        )
-        
-        # Create Treeview
-        self.tree = ttk.Treeview(self.attendance_frame)
-        self.tree["columns"] = ("name", "student_id", "class", "time", "status")
-        
-        # Configure columns
-        self.tree.column("#0", width=0, stretch=tk.NO)
-        self.tree.column("name", width=250, anchor=tk.W)
-        self.tree.column("student_id", width=150, anchor=tk.W)
-        self.tree.column("class", width=150, anchor=tk.W)
-        self.tree.column("time", width=200, anchor=tk.W)
-        self.tree.column("status", width=150, anchor=tk.W)
-        
-        # Configure headings
-        self.tree.heading("#0", text="")
-        self.tree.heading("name", text="Họ và tên", anchor=tk.W)
-        self.tree.heading("student_id", text="Mã sinh viên", anchor=tk.W)
-        self.tree.heading("class", text="Lớp", anchor=tk.W)
-        self.tree.heading("time", text="Thời gian", anchor=tk.W)
-        self.tree.heading("status", text="Trạng thái", anchor=tk.W)
-        
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(self.attendance_frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
-        
-        # Pack elements
-        self.tree.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # Hide initially
-        self.attendance_frame.pack_forget()
-
-    def create_status_bar(self):
-        self.status_var = tk.StringVar()
-        self.status_bar = ttk.Label(
-            self.root,
-            textvariable=self.status_var,
-            relief=tk.SUNKEN,
-            anchor=tk.W,
-            padding=(10, 5)
-        )
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
-        self.status_var.set("Sẵn sàng")
-
-    def open_add_student(self):
-        import client.recognize_face as recognize_face
-        self.status_var.set("Đang mở cửa sổ thêm sinh viên...")
+        # MongoDB Connection
         try:
-            os.system('python client/recognize_face.py')
-            self.status_var.set("Đã mở cửa sổ thêm sinh viên")
+            self.client = MongoClient('mongodb://localhost:27017/')
+            self.db = self.client['face_attendance']
+            self.attendance_col = self.db['attendance']
         except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể mở cửa sổ thêm sinh viên: {str(e)}")
-            self.status_var.set("Lỗi khi mở cửa sổ thêm sinh viên")
+            messagebox.showerror("Database Error", f"Could not connect to MongoDB: {str(e)}")
+            self.root.quit()
 
-    def open_attendance(self):
-        import client.capture_faces as capture_faces
-        self.status_var.set("Đang mở cửa sổ điểm danh...")
+        # Create Main Layout
+        self.create_sidebar()
+        self.create_main_content()
+
+    def create_sidebar(self):
+        # Sidebar Frame
+        self.sidebar_frame = ctk.CTkFrame(
+            master=self.root, 
+            width=250, 
+            corner_radius=0,
+            fg_color=self.colors['primary']
+        )
+        self.sidebar_frame.pack(side="left", fill="y")
+        self.sidebar_frame.pack_propagate(False)
+
+        # Logo or Title
+        logo_label = ctk.CTkLabel(
+            self.sidebar_frame, 
+            text="Face Attendance",
+            font=("Helvetica", 20, "bold"),
+            text_color=self.colors['text_light']
+        )
+        logo_label.pack(pady=(30, 20))
+
+        # Sidebar Buttons
+        sidebar_buttons = [
+            ("Add Student", self.open_add_student),
+            ("Take Attendance", self.open_attendance),
+            ("View Attendance", self.show_attendance_list),
+            ("Exit", self.root.quit)
+        ]
+
+        for text, command in sidebar_buttons:
+            button = ctk.CTkButton(
+                master=self.sidebar_frame,
+                text=text,
+                command=command,
+                fg_color=self.colors['secondary'],
+                hover_color=self.colors['accent'],
+                text_color=self.colors['text_light'],
+                corner_radius=10,
+                width=200,
+                height=50
+            )
+            button.pack(pady=10)
+
+    def get_statistics(self):
         try:
-            os.system('python client/capture_faces.py')
-            self.status_var.set("Đã mở cửa sổ điểm danh")
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể mở cửa sổ điểm danh: {str(e)}")
-            self.status_var.set("Lỗi khi mở cửa sổ điểm danh")
+            # Lấy tổng số sinh viên từ collection `students`
+            total_students = self.db['students'].count_documents({})
 
-    def show_attendance_list(self):
-        self.attendance_frame.pack(fill='both', expand=True)
-        self.status_var.set("Đang tải danh sách điểm danh...")
-        
+            # Lấy số sinh viên đã điểm danh hôm nay từ collection `attendance`
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = today_start + timedelta(days=1)
+
+            present_students = self.attendance_col.count_documents({
+                'timestamp': {
+                    '$gte': today_start,
+                    '$lt': today_end
+                },
+                'status': 'Có mặt'
+            })
+
+            # Tính số sinh viên vắng mặt
+            absent_students = total_students - present_students
+
+            return {
+                "Total Students": str(total_students),
+                "Today's Attendance": str(present_students),
+                "Absent Today": str(absent_students)
+            }
+        except Exception as e:
+            messagebox.showwarning("Thống kê", f"Không thể tải số liệu: {str(e)}")
+            return {
+                "Total Students": "0",
+                "Today's Attendance": "0", 
+                "Absent Today": "0"
+            }
+
+    def populate_attendance_table(self):
+        """
+        Hiển thị danh sách điểm danh của ngày hôm nay
+        """
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
-            
-        try:
-            attendance_records = self.attendance_col.find({}).sort("timestamp", -1)
-            
-            for record in attendance_records:
-                time_str = record.get('timestamp', datetime.now()).strftime("%d-%m-%Y %H:%M:%S")
-                
-                self.tree.insert("", "end", values=(
-                    record.get('name', 'N/A'),
-                    record.get('student_id', 'N/A'),
-                    record.get('class', 'N/A'),
-                    time_str,
-                    record.get('status', 'N/A')
-                ))
-            
-            self.status_var.set(f"Đã tải {self.tree.get_children().__len__()} bản ghi")
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể tải danh sách điểm danh: {str(e)}")
-            self.status_var.set("Lỗi khi tải danh sách điểm danh")
+        
+        def fetch_and_populate():
+            try:
+                today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                today_end = today_start + timedelta(days=1)
+
+                records = self.attendance_col.find({
+                    'timestamp': {
+                        '$gte': today_start,
+                        '$lt': today_end
+                    }
+                }).sort("timestamp", 1)
+
+                for record in records:
+                    self.tree.insert('', 'end', values=(
+                        record.get('name', 'N/A'),
+                        record.get('student_id', 'N/A'),
+                        record.get('class', 'N/A'),
+                        record.get('timestamp', datetime.now()).strftime("%H:%M"),
+                        record.get('status', 'N/A')
+                    ))
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể tải danh sách điểm danh: {str(e)}")
+
+        # Run the fetch operation in a separate thread to avoid GUI lag
+        threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def create_main_content(self):
+        # Main Content Frame
+        self.main_frame = ctk.CTkFrame(
+            master=self.root, 
+            fg_color=self.colors['background']
+        )
+        self.main_frame.pack(side="right", fill="both", expand=True, padx=20, pady=20)
+
+        # Dashboard Title
+        self.dashboard_title = ctk.CTkLabel(
+            self.main_frame, 
+            text="Bảng điều khiển",
+            font=("Helvetica", 24, "bold"),
+            text_color=self.colors['text_dark']
+        )
+        self.dashboard_title.pack(pady=(0, 20), anchor='w')
+
+        # Statistics Cards Frame
+        self.stats_frame = ctk.CTkFrame(
+            self.main_frame, 
+            fg_color='transparent'
+        )
+        self.stats_frame.pack(fill='x', pady=10)
+
+        # Lấy số liệu thực từ database
+        stats = self.get_statistics()
+
+        # Create Statistics Cards
+        stats_list = [
+            ("Tổng số sinh viên", stats["Total Students"]),
+            ("Điểm danh hôm nay", stats["Today's Attendance"]),
+            ("Vắng mặt hôm nay", stats["Absent Today"])
+        ]
+
+        for i, (title, value) in enumerate(stats_list):
+            card = ctk.CTkFrame(
+                self.stats_frame, 
+                fg_color=self.colors['text_light'],
+                corner_radius=15
+            )
+            card.grid(row=0, column=i, padx=10, sticky='ew')
+
+            ctk.CTkLabel(
+                card, 
+                text=title, 
+                font=("Helvetica", 14),
+                text_color=self.colors['text_dark']
+            ).pack(pady=(10, 5))
+
+            ctk.CTkLabel(
+                card, 
+                text=value, 
+                font=("Helvetica", 24, "bold"),
+                text_color=self.colors['primary']
+            ).pack(pady=(0, 10))
+
+        self.create_attendance_table()
+
+    def create_attendance_table(self):
+        # Table Frame
+        table_frame = ctk.CTkFrame(
+            self.main_frame, 
+            fg_color='transparent'
+        )
+        table_frame.pack(fill='both', expand=True, pady=20)
+
+        # Table Title
+        ctk.CTkLabel(
+            table_frame, 
+            text="Recent Attendance",
+            font=("Helvetica", 18, "bold"),
+            text_color=self.colors['text_dark']
+        ).pack(anchor='w', pady=(0, 10))
+
+        # Treeview
+        columns = ("Name", "Student ID", "Class", "Time", "Status")
+        self.tree = ttk.Treeview(
+            table_frame, 
+            columns=columns, 
+            show='headings', 
+            style='Custom.Treeview'
+        )
+
+        # Style for Treeview
+        style = ttk.Style()
+        style.theme_use('default')
+        style.configure(
+            'Custom.Treeview', 
+            background=self.colors['text_light'],
+            foreground=self.colors['text_dark'],
+            rowheight=35,
+            fieldbackground=self.colors['text_light']
+        )
+        style.map(
+            'Custom.Treeview', 
+            background=[('selected', self.colors['primary'])]
+        )
+
+        # Column setup
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, anchor='center', width=100)
+
+        # Scrollbar
+        scrollbar = ctk.CTkScrollbar(
+            table_frame, 
+            orientation='vertical', 
+            command=self.tree.yview
+        )
+        self.tree.configure(yscroll=scrollbar.set)
+
+        # Pack Table and Scrollbar
+        self.tree.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y', padx=(0, 10))
+
+        # Populate Table (sample data)
+        self.populate_attendance_table()
+
+    def open_add_student(self):
+        def run_script():
+            try:
+                os.system('python client/recognize_face.py')
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not open student registration: {str(e)}")
+
+        threading.Thread(target=run_script, daemon=True).start()  # Run in a separate thread
+
+    def open_attendance(self):
+        def run_script():
+            try:
+                os.system('python client/capture_faces.py')
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not open attendance capture: {str(e)}")
+
+        threading.Thread(target=run_script, daemon=True).start()  # Run in a separate thread
+
+    def show_attendance_list(self):
+        print("Loading attendance list...")
+        # You can add more detailed view or filtering options here
+        self.populate_attendance_table()
 
     def __del__(self):
         if hasattr(self, 'client'):
             self.client.close()
 
-if __name__ == "__main__":
-    root = tk.Tk()
+def main():
+    root = ctk.CTk()
     app = FaceAttendanceSystem(root)
     root.mainloop()
+
+if __name__ == "__main__":
+    main()
