@@ -5,6 +5,7 @@ from PIL import Image, ImageTk
 import pymongo
 import gridfs
 import os
+from tkinter import messagebox
 
 class AddStudentWindow:
     def __init__(self):
@@ -120,16 +121,38 @@ class AddStudentWindow:
                     self.cap.release()
                     self.cap = None
 
+    from tkinter import messagebox  # Add this import at the top
+
     def save_student(self):
-        student_record = {
-            'name': self.name_entry.get(),
-            'student_id': self.id_entry.get(),
-            'class': self.class_entry.get(),
-            'images': self.image_ids
-        }
-        self.students_col.insert_one(student_record)
-        print(f"Đã lưu thông tin sinh viên: {student_record['name']}")
-        self.root.destroy()
+        try:
+            student_record = {
+                'name': self.name_entry.get(),
+                'student_id': self.id_entry.get(),
+                'class': self.class_entry.get(),
+                'images': self.image_ids
+            }
+            
+            # Validate required fields
+            if not all([student_record['name'], student_record['student_id'], student_record['class']]):
+                messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin sinh viên")
+                return
+                
+            if len(self.image_ids) < 5:
+                messagebox.showerror("Lỗi", "Vui lòng chụp đủ 5 tấm ảnh")
+                return
+                
+            # Save to database
+            self.students_col.insert_one(student_record)
+            
+            # Show success message
+            messagebox.showinfo(
+                "Thành công", 
+                f"Đã lưu thông tin sinh viên:\nHọ tên: {student_record['name']}\nMSSV: {student_record['student_id']}\nLớp: {student_record['class']}"
+            )
+            self.root.destroy()
+            
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể lưu thông tin sinh viên: {str(e)}")
 
     def run(self):
         self.root.mainloop()

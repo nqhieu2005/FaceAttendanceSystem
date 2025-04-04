@@ -14,7 +14,7 @@ ctk.set_default_color_theme("blue")
 class FaceAttendanceSystem:
     def __init__(self, root):
         self.root = root
-        self.root.title("Smart Face Attendance System")
+        self.root.title("Điểm danh thông minh")
         self.root.geometry("1366x768")
         
         # Modern Color Palette
@@ -86,7 +86,7 @@ class FaceAttendanceSystem:
         # App Title
         title_label = ctk.CTkLabel(
             logo_frame,
-            text="Face Attendance",
+            text="Nhận diện khuôn mặt",
             font=("Roboto", 28, "bold"),
             text_color=self.colors['text_light']
         )
@@ -94,12 +94,12 @@ class FaceAttendanceSystem:
 
         # Sidebar Menu Buttons with Icons
         menu_items = [
-            ("📊 Dashboard", self.show_dashboard),
-            ("👥 Add Student", self.open_add_student),
-            ("📸 Take Attendance", self.open_attendance),
-            ("📋 View Records", self.show_attendance_list),
-            ("⚙️ Settings", self.open_settings),
-            ("❌ Exit", self.root.quit)
+            ("📊 Bảng điều khiển", self.show_dashboard),
+            ("👥 Thêm sinh viên", self.open_add_student),
+            ("📸 Điểm danh", self.open_attendance),
+            ("📋 Lịch sử điểm danh", self.show_attendance_list),
+            # ("⚙️ Settings", self.open_settings),
+            ("❌ Thoát", self.root.quit)
         ]
 
         for text, command in menu_items:
@@ -143,12 +143,14 @@ class FaceAttendanceSystem:
         )
         header_frame.pack(fill="x", padx=20, pady=20)
 
-        ctk.CTkLabel(
+        self.time_label = ctk.CTkLabel(
             header_frame,
-            text=f"Welcome Back! Today is {datetime.now().strftime('%B %d, %Y')}",
+            text="",
             font=("Roboto", 24, "bold"),
             text_color=self.colors['text_dark']
-        ).pack(pady=30)
+        )
+        self.time_label.pack(pady=30)
+        self.update_time()
 
         
         header_frame.pack(fill="x", padx=20, pady=20)
@@ -219,6 +221,11 @@ class FaceAttendanceSystem:
 
         # Create modern attendance table
         self.create_attendance_table()
+
+    def update_time(self):
+        current_time = datetime.now().strftime('%B %d, %Y %H:%M:%S')
+        self.time_label.configure(text=f"Today is {current_time}")
+        self.root.after(1000, self.update_time) 
 
     def refresh_dashboard(self):
         """Refresh dashboard data based on selected class"""
@@ -309,18 +316,18 @@ class FaceAttendanceSystem:
             self.main_frame, 
             fg_color='transparent'
         )
-        table_frame.pack(fill='both', expand=True, pady=20, padx=20)  # Adjusted padding
+        table_frame.pack(fill='both', expand=True, pady=20, padx=20)  
 
         # Table Title
         ctk.CTkLabel(
             table_frame, 
-            text="Recent Attendance",
-            font=("Helvetica", 22, "bold"),  # Adjusted font size
+            text="Điểm danh hôm nay",
+            font=("Helvetica", 22, "bold"),  
             text_color=self.colors['text_dark']
-        ).pack(anchor='w', pady=(0, 20), padx=30)  # Adjusted padding
+        ).pack(anchor='w', pady=(0, 20), padx=30)  
 
         # Treeview
-        columns = ("Name", "Student ID", "Class", "Time", "Status")
+        columns = ("Họ Tên", "Mã Sinh Viên", "Lớp", "Thời gian", "Trạng Thái")
         self.tree = ttk.Treeview(
             table_frame, 
             columns=columns, 
@@ -335,21 +342,21 @@ class FaceAttendanceSystem:
             'Custom.Treeview', 
             background=self.colors['text_light'],
             foreground=self.colors['text_dark'],
-            rowheight=40,  # Adjusted row height
-            font=("Helvetica", 12),  # Adjusted font
+            rowheight=40,  
+            font=("Helvetica", 12),  
             fieldbackground=self.colors['text_light'],
-            bordercolor=self.colors['primary']  # Added border color
+            bordercolor=self.colors['primary']  
         )
         style.map(
             'Custom.Treeview', 
             background=[('selected', self.colors['primary'])],
-            bordercolor=[('selected', self.colors['accent'])]  # Added border color for selected
+            bordercolor=[('selected', self.colors['accent'])]  
         )
 
         # Column setup
         for col in columns:
-            self.tree.heading(col, text=col, anchor='center')  # Adjusted anchor
-            self.tree.column(col, anchor='center', width=130)  # Adjusted width
+            self.tree.heading(col, text=col, anchor='center')  
+            self.tree.column(col, anchor='center', width=130)  
 
         # Scrollbar
         scrollbar = ctk.CTkScrollbar(
@@ -360,8 +367,8 @@ class FaceAttendanceSystem:
         self.tree.configure(yscroll=scrollbar.set)
 
         # Pack Table and Scrollbar
-        self.tree.pack(side='left', fill='both', expand=True, padx=(30, 0), pady=(0, 30))  # Adjusted padding
-        scrollbar.pack(side='right', fill='y', padx=(0, 30), pady=(0, 30))  # Adjusted padding
+        self.tree.pack(side='left', fill='both', expand=True, padx=(30, 0), pady=(0, 30))  
+        scrollbar.pack(side='right', fill='y', padx=(0, 30), pady=(0, 30)) 
 
         # Populate Table (sample data)
         self.populate_attendance_table()
@@ -373,9 +380,9 @@ class FaceAttendanceSystem:
         self.create_stat_cards(stats)
         self.populate_attendance_table(selected_class)
 
-    def open_settings(self):
-        # Add settings dialog implementation
-        pass
+    # def open_settings(self):
+        
+    #     pass
 
     def get_statistics(self, selected_class="Tất cả các lớp"):
         try:
@@ -450,7 +457,7 @@ class FaceAttendanceSystem:
             try:
                 os.system('python client/recognize_face.py')
             except Exception as e:
-                messagebox.showerror("Error", f"Could not open student registration: {str(e)}")
+                messagebox.showerror("Lỗi", f"Không thể mở cửa sổ thêm sinh viên: {str(e)}")
 
         threading.Thread(target=run_script, daemon=True).start()  # Run in a separate thread
 
@@ -459,13 +466,12 @@ class FaceAttendanceSystem:
             try:
                 os.system('python client/capture_faces.py')
             except Exception as e:
-                messagebox.showerror("Error", f"Could not open attendance capture: {str(e)}")
+                messagebox.showerror("Lỗi", f"Không thể mở cửa sổ điểm danh: {str(e)}")
 
         threading.Thread(target=run_script, daemon=True).start()  # Run in a separate thread
 
     def show_attendance_list(self):
-        print("Loading attendance list...")
-        # You can add more detailed view or filtering options here
+        # print("Loading attendance list...")
         self.populate_attendance_table()
 
     def __del__(self):

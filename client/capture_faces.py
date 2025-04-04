@@ -135,9 +135,7 @@ class AttendanceWindow:
                 "method": "Nhận diện khuôn mặt"
             }
             self.attendance_col.insert_one(attendance_record)
-            self.info_label.configure(
-                text=self.info_label.cget("text") + "\n\nĐiểm danh thành công!"
-            )
+            PopupWindow(self.root, student)
             self.attendance_marked = True
         else:
             self.info_label.configure(
@@ -147,6 +145,94 @@ class AttendanceWindow:
 
     def run(self):
         self.root.mainloop()
+
+class PopupWindow:
+    def __init__(self, parent, student_info):
+        self.popup = tk.Toplevel(parent)
+        self.popup.title("Điểm Danh Thành Công")
+        self.popup.geometry("400x500")
+        
+        # Đảm bảo popup luôn hiển thị trên cùng và grab focus
+        self.popup.attributes('-topmost', True)
+        self.popup.grab_set()
+        self.popup.focus_force()
+        
+        # Đặt cửa sổ ở giữa màn hình
+        window_width = 400
+        window_height = 500
+        screen_width = self.popup.winfo_screenwidth()
+        screen_height = self.popup.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        self.popup.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # Thiết lập style với màu sắc nổi bật hơn
+        style = ttk.Style()
+        style.configure("Success.TLabel", foreground="#00b300", font=('Arial', 50, 'bold'))
+        style.configure("Title.TLabel", font=('Arial', 18, 'bold'), foreground='#000000')
+        style.configure("Info.TLabel", font=('Arial', 12))
+        style.configure("Custom.TButton", font=('Arial', 12))
+
+        # Container chính với nền màu để dễ nhìn
+        main_frame = ttk.Frame(self.popup, padding=20)
+        main_frame.pack(fill='both', expand=True)
+        
+        success_label = ttk.Label(main_frame, text="✓", style="Success.TLabel")
+        success_label.pack(pady=(20, 10))
+        
+        # Tiêu đề
+        title_label = ttk.Label(
+            main_frame,
+            text="ĐIỂM DANH THÀNH CÔNG",
+            style="Title.TLabel"
+        )
+        title_label.pack(pady=(0, 20))
+        
+        # Khung thông tin
+        info_frame = ttk.LabelFrame(
+            main_frame,
+            text="Thông tin sinh viên",
+            padding=15
+        )
+        info_frame.pack(fill='x', padx=10)
+        
+        # Thông tin chi tiết
+        info_list = [
+            ("Họ và tên", student_info['name']),
+            ("Mã số SV", student_info['student_id']),
+            ("Lớp", student_info['class']),
+            ("Thời gian", datetime.datetime.now().strftime('%H:%M:%S %d/%m/%Y'))
+        ]
+        
+        for label, value in info_list:
+            info_container = ttk.Frame(info_frame)
+            info_container.pack(fill='x', pady=5)
+            
+            ttk.Label(
+                info_container,
+                text=f"{label}:",
+                style="Info.TLabel",
+                width=10
+            ).pack(side='left')
+            
+            ttk.Label(
+                info_container,
+                text=value,
+                style="Info.TLabel"
+            ).pack(side='left', padx=(10, 0))
+        
+        # Nút đóng
+        close_btn = ttk.Button(
+            main_frame,
+            text="Đóng",
+            command=self.popup.destroy,
+            style="Custom.TButton",
+            width=20
+        )
+        close_btn.pack(pady=30)
+        
+        # Tự động đóng sau 5 giây nhưng không có fade effect
+        self.popup.after(5000, self.popup.destroy)
 
 if __name__ == "__main__":
     app = AttendanceWindow()
