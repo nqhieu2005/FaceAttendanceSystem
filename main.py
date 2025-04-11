@@ -68,9 +68,9 @@ class FaceAttendanceSystem:
         )
         logo_frame.pack(pady=(40, 30))
 
-        # Load and display logo image
+        
         try:
-            logo_img = Image.open("assets/logo.png")  # Add your logo image
+            logo_img = Image.open("assets/logo.png")  
             logo_img = logo_img.resize((80, 80))
             logo_photo = ImageTk.PhotoImage(logo_img)
             logo_label = tk.Label(
@@ -97,7 +97,7 @@ class FaceAttendanceSystem:
             ("📊 Bảng điều khiển", self.show_dashboard),
             ("👥 Thêm sinh viên", self.open_add_student),
             ("📸 Điểm danh", self.open_attendance),
-            ("📋 Lịch sử điểm danh", self.show_attendance_list),
+            # ("📋 Lịch sử điểm danh", self.show_attendance_list),
             # ("⚙️ Settings", self.open_settings),
             ("❌ Thoát", self.root.quit)
         ]

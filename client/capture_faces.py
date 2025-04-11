@@ -5,6 +5,7 @@ from PIL import Image, ImageTk
 from pymongo import MongoClient
 import datetime
 import numpy as np
+import face_recognition
 
 class AttendanceWindow:
     def __init__(self):
@@ -21,9 +22,7 @@ class AttendanceWindow:
         # Khởi tạo các biến
         self.cap = None
         self.attendance_marked = False
-        self.haar_cascade = cv2.CascadeClassifier(
-            "E:/NCKH2024_2025/FaceAttendanceSystem/client/haarcascade_frontalface_default.xml"
-        )
+        self.current_student_id = None  # Lưu ID sinh viên hiện tại để tránh lặp lại
 
         self.create_widgets()
 
@@ -75,41 +74,52 @@ class AttendanceWindow:
         self.stop_btn.configure(state='disabled')
         self.camera_label.configure(image='')
         self.info_label.configure(text="Chưa phát hiện khuôn mặt")
+        self.attendance_marked = False
+        self.current_student_id = None
 
     def update_camera(self):
         if self.cap is not None:
             ret, frame = self.cap.read()
             if ret:
+                # Chuyển đổi frame sang định dạng RGB
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
                 # Nhận diện khuôn mặt
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                faces = self.haar_cascade.detectMultiScale(gray, 1.3, 4)
+                face_locations = face_recognition.face_locations(rgb_frame)
+                face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
-                if len(faces) > 0:
-                    # Xử lý khi phát hiện khuôn mặt
-                    student = self.students_col.find_one()
-                    if student:
-                        name = student.get('name', 'N/A')
-                        student_id = student.get('student_id', 'N/A')
-                        class_ = student.get('class', 'N/A')
+                if face_encodings:
+                    # So khớp với dữ liệu trong MongoDB
+                    for face_encoding in face_encodings:
+                        students = self.students_col.find()
+                        for student in students:
+                            stored_encoding = np.array(student['face_encoding'])  # Lấy face_encoding từ DB
+                            match = face_recognition.compare_faces([stored_encoding], face_encoding, tolerance=0.5)  # Điều chỉnh ngưỡng
+                            if match[0]:
+                                # Nếu khớp, hiển thị thông tin sinh viên
+                                student_id = student.get('student_id', 'N/A')
+                                if self.current_student_id != student_id:  # Kiểm tra nếu sinh viên chưa được điểm danh
+                                    self.current_student_id = student_id
+                                    name = student.get('name', 'N/A')
+                                    class_ = student.get('class', 'N/A')
 
-                        info_text = f"Họ và tên: {name}\nMã sinh viên: {student_id}\nLớp: {class_}"
-                        self.info_label.configure(text=info_text)
+                                    info_text = f"Họ và tên: {name}\nMã sinh viên: {student_id}\nLớp: {class_}"
+                                    self.info_label.configure(text=info_text)
 
-                        # Xử lý điểm danh
-                        if not self.attendance_marked:
-                            self.mark_attendance(student)
-
-                    # Vẽ khung xung quanh khuôn mặt
-                    for (x, y, w, h) in faces:
-                        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                                    # Xử lý điểm danh
+                                    self.mark_attendance(student)
+                                break
+                        else:
+                            continue
+                        break
                 else:
                     self.info_label.configure(text="Chưa phát hiện khuôn mặt")
                     self.attendance_marked = False
+                    self.current_student_id = None
 
                 # Hiển thị frame
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame = cv2.resize(frame, (640, 480))
-                img = Image.fromarray(frame)
+                img = Image.fromarray(rgb_frame)
                 imgtk = ImageTk.PhotoImage(image=img)
                 self.camera_label.imgtk = imgtk
                 self.camera_label.configure(image=imgtk)

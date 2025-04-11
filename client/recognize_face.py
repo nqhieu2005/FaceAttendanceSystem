@@ -5,6 +5,8 @@ from PIL import Image, ImageTk
 import pymongo
 import gridfs
 import os
+import numpy as np
+import face_recognition
 from tkinter import messagebox
 
 class AddStudentWindow:
@@ -26,6 +28,7 @@ class AddStudentWindow:
         self.cap = None
         self.photo_count = 0
         self.image_ids = []
+        self.face_encodings = []  # Lưu trữ face encodings
 
     def create_widgets(self):
         # Frame cho thông tin sinh viên
@@ -114,43 +117,64 @@ class AddStudentWindow:
                     image_id = self.fs.put(image_file, filename=photo_filename)
                     self.image_ids.append(image_id)
 
-                self.photo_count += 1
+                # Tính toán face encoding
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                face_encodings = face_recognition.face_encodings(rgb_frame)
+                if face_encodings:
+                    # Lưu face encoding đầu tiên (nếu có khuôn mặt)
+                    self.face_encodings.append(face_encodings[0])
+                    self.photo_count += 1
+                else:
+                    messagebox.showwarning("Cảnh báo", "Không phát hiện khuôn mặt trong ảnh này. Vui lòng thử lại.")
+
                 if self.photo_count >= 5:
                     self.capture_btn.configure(state='disabled')
                     self.save_btn.configure(state='normal')
                     self.cap.release()
                     self.cap = None
 
-    from tkinter import messagebox  # Add this import at the top
-
     def save_student(self):
         try:
+            # Kiểm tra thông tin đầu vào
+            if not self.name_entry.get() or not self.id_entry.get() or not self.class_entry.get():
+                messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin sinh viên")
+                return
+
+            # Kiểm tra trùng lặp student_id
+            if self.students_col.find_one({"student_id": self.id_entry.get()}):
+                messagebox.showerror("Lỗi", "Mã sinh viên đã tồn tại. Vui lòng nhập mã khác.")
+                return
+
+            if len(self.image_ids) < 5:
+                messagebox.showerror("Lỗi", "Vui lòng chụp đủ 5 tấm ảnh")
+                return
+
+            if len(self.face_encodings) < 5:
+                messagebox.showerror("Lỗi", "Không phải tất cả ảnh đều chứa khuôn mặt. Vui lòng chụp lại.")
+                return
+
+            # Tính trung bình face encodings
+            mean_face_encoding = np.mean(self.face_encodings, axis=0).tolist()
+
+            # Tạo bản ghi sinh viên
             student_record = {
                 'name': self.name_entry.get(),
                 'student_id': self.id_entry.get(),
                 'class': self.class_entry.get(),
-                'images': self.image_ids
+                'images': self.image_ids,
+                'face_encoding': mean_face_encoding  # Lưu face encoding
             }
-            
-            # Validate required fields
-            if not all([student_record['name'], student_record['student_id'], student_record['class']]):
-                messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin sinh viên")
-                return
-                
-            if len(self.image_ids) < 5:
-                messagebox.showerror("Lỗi", "Vui lòng chụp đủ 5 tấm ảnh")
-                return
-                
-            # Save to database
+
+            # Lưu vào cơ sở dữ liệu
             self.students_col.insert_one(student_record)
-            
-            # Show success message
+
+            # Hiển thị thông báo thành công
             messagebox.showinfo(
                 "Thành công", 
                 f"Đã lưu thông tin sinh viên:\nHọ tên: {student_record['name']}\nMSSV: {student_record['student_id']}\nLớp: {student_record['class']}"
             )
             self.root.destroy()
-            
+
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể lưu thông tin sinh viên: {str(e)}")
 
