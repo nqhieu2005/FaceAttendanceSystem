@@ -14,23 +14,27 @@ ctk.set_default_color_theme("blue")
 class FaceAttendanceSystem:
     def __init__(self, root):
         self.root = root
-        self.root.title("Điểm danh thông minh")
+        self.root.title("Hệ thống nhận diện khuôn mặt")
         self.root.geometry("1366x768")
         
         # Modern Color Palette
         self.colors = {
-            'primary': '#2196F3',       # Material Blue
+            'primary': "#00923F",       # Material Blue
             'secondary': '#1976D2',     # Darker Blue
             'gradient1': '#1A237E',     # Indigo
             'gradient2': '#0D47A1',     # Deep Blue
-            'background': '#FAFAFA',    # Almost White
+            'background': '#E3F2FD',    # Light Blue Background
             'card_bg': '#FFFFFF',       # Pure White
             'text_dark': '#212121',     # Almost Black
             'text_light': '#FFFFFF',    # White
             'accent': '#03A9F4',        # Light Blue
             'success': '#4CAF50',       # Green
             'warning': '#FFC107',       # Amber
-            'error': '#F44336'          # Red
+            'error': '#F44336',          # Red
+            'card_bg': "#ffffff",
+            'hover_bg': "#85f2b4",  # Màu khi hover
+            'accent': "#00aaff",    # Màu border khi hover
+            # 'primary': "#dddddd"  # Màu chính
         }
 
         self.root.configure(bg=self.colors['background'])
@@ -44,127 +48,245 @@ class FaceAttendanceSystem:
             messagebox.showerror("Database Error", f"Could not connect to MongoDB: {str(e)}")
             self.root.quit()
 
-        self.create_sidebar()
-        self.create_main_content()
-        
-        # Add animation effects
-        self.animate_cards()
+        self.create_main_interface()
 
-    def create_sidebar(self):
-        # Gradient Sidebar Frame
-        self.sidebar_frame = ctk.CTkFrame(
-            master=self.root,
-            width=300,
-            corner_radius=0,
-            fg_color=self.colors['gradient1']
+    def create_main_interface(self):
+        # Header Frame
+        header_frame = ctk.CTkFrame(
+            self.root,
+            height=80,
+            fg_color=self.colors['primary'],
+            corner_radius=0
         )
-        self.sidebar_frame.pack(side="left", fill="y")
-        self.sidebar_frame.pack_propagate(False)
+        header_frame.pack(fill="x", pady=0)
+        header_frame.pack_propagate(False)
 
-        # Logo Frame
-        logo_frame = ctk.CTkFrame(
-            self.sidebar_frame,
+        # Header Content
+        header_content = ctk.CTkFrame(
+            header_frame,
             fg_color="transparent"
         )
-        logo_frame.pack(pady=(40, 30))
+        header_content.pack(expand=True, fill="both")
 
-        
-        try:
-            logo_img = Image.open("assets/logo.png")  
-            logo_img = logo_img.resize((80, 80))
-            logo_photo = ImageTk.PhotoImage(logo_img)
-            logo_label = tk.Label(
-                logo_frame,
-                image=logo_photo,
-                bg=self.colors['gradient1']
-            )
-            logo_label.image = logo_photo
-            logo_label.pack()
-        except:
-            pass
+        logo_image = Image.open("logo.png")
+        logo_image = logo_image.resize((60, 60))  # Adjust size as needed
+        self.logo_photo = ImageTk.PhotoImage(logo_image)  # Keep a reference to avoid garbage collection
 
-        # App Title
+        logo_label = tk.Label(
+            header_content,
+            image=self.logo_photo,
+            bg=self.colors['primary']
+        )
+        logo_label.pack(side="left", padx=20)
+
+        # Title
         title_label = ctk.CTkLabel(
-            logo_frame,
-            text="Nhận diện khuôn mặt",
+            header_content,
+            text="Hệ thống nhận diện khuôn mặt",
             font=("Roboto", 28, "bold"),
             text_color=self.colors['text_light']
         )
-        title_label.pack(pady=(10, 0))
+        title_label.pack(expand=True)
 
-        # Sidebar Menu Buttons with Icons
-        menu_items = [
-            ("📊 Bảng điều khiển", self.show_dashboard),
-            ("👥 Thêm sinh viên", self.open_add_student),
-            ("📸 Điểm danh", self.open_attendance),
-            # ("📋 Lịch sử điểm danh", self.show_attendance_list),
-            # ("⚙️ Settings", self.open_settings),
-            ("❌ Thoát", self.root.quit)
-        ]
-
-        for text, command in menu_items:
-            button = ctk.CTkButton(
-                master=self.sidebar_frame,
-                text=text,
-                command=command,
-                fg_color="transparent",
-                hover_color=self.colors['gradient2'],
-                anchor="w",
-                font=("Roboto", 16),
-                height=50,
-                corner_radius=0
-            )
-            button.pack(fill="x", pady=2)
-
-    def get_class_list(self):
-        """Get unique class names from students collection"""
-        try:
-            classes = self.db['students'].distinct('class')
-            return ["Tất cả các lớp"] + sorted(classes)
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể tải danh sách lớp: {str(e)}")
-            return ["Tất cả các lớp"]       
-
-    def create_main_content(self):
-        # Main Content Area
+        # Main Content Frame with background image effect
         self.main_frame = ctk.CTkFrame(
-            master=self.root,
+            self.root,
             fg_color=self.colors['background'],
             corner_radius=0
         )
-        self.main_frame.pack(side="right", fill="both", expand=True)
+        self.main_frame.pack(fill="both", expand=True, padx=40, pady=40)
 
-        # Header with welcome message
-        header_frame = ctk.CTkFrame(
+        # Create function cards grid
+        self.create_function_cards()
+
+    def create_function_cards(self):
+        # Cards Container
+        cards_frame = ctk.CTkFrame(
             self.main_frame,
-            fg_color=self.colors['card_bg'],
-            height=100,
-            corner_radius=15
+            fg_color="transparent"
         )
-        header_frame.pack(fill="x", padx=20, pady=20)
+        cards_frame.pack(expand=True, fill="both")
 
-        self.time_label = ctk.CTkLabel(
-            header_frame,
-            text="",
-            font=("Roboto", 24, "bold"),
-            text_color=self.colors['text_dark']
-        )
-        self.time_label.pack(pady=30)
-        self.update_time()
+        # Function cards data (only functions that exist in the code)
+        functions = [
+            {
+                "title": "Sinh viên",
+                "icon": "👤",
+                "command": self.open_add_student,
+                "description": "Thêm sinh viên mới"
+            },
+            {
+                "title": "Nhận diện", 
+                "icon": "📷",
+                "command": self.open_attendance,
+                "description": "Điểm danh khuôn mặt"
+            },
+            {
+                "title": "Điểm danh",
+                "icon": "📝",
+                "command": self.show_attendance_dashboard,
+                "description": "Xem bảng điểm danh"
+            },
+            {
+                "title": "Thống kê",
+                "icon": "📊", 
+                "command": self.show_statistics,
+                "description": "Thống kê điểm danh"
+            }
+        ]
 
+        # Create cards in 2x2 grid
+        for i, func in enumerate(functions):
+            row = i // 2
+            col = i % 2
+            
+            # Card Frame
+            card = ctk.CTkFrame(
+                cards_frame,
+                width=300,
+                height=200,
+                fg_color=self.colors['card_bg'],
+                corner_radius=20,
+                border_width=2,
+                border_color=self.colors['primary']
+            )
+            card.grid(row=row, column=col, padx=30, pady=30, sticky="nsew")
+            card.grid_propagate(False)
+
+            # Card Content Frame
+            content_frame = ctk.CTkFrame(
+                card,
+                fg_color="transparent"
+            )
+            content_frame.pack(expand=True, fill="both")
+
+            # Icon
+            icon_label = ctk.CTkLabel(
+                content_frame,
+                text=func['icon'],
+                font=("Segoe UI Emoji", 48),
+                text_color=self.colors['primary']
+            )
+            icon_label.pack(pady=(30, 10))
+
+            # Title
+            title_label = ctk.CTkLabel(
+                content_frame,
+                text=func['title'],
+                font=("Roboto", 20, "bold"),
+                text_color=self.colors['text_dark']
+            )
+            title_label.pack(pady=(0, 5))
+
+            # Description
+            desc_label = ctk.CTkLabel(
+                content_frame,
+                text=func['description'],
+                font=("Roboto", 12),
+                text_color=self.colors['text_dark'],
+                fg_color="transparent"
+            )
+            desc_label.pack(pady=(0, 20))
+
+            # Make card clickable
+            self.make_card_clickable(card, func['command'])
+            self.make_card_clickable(content_frame, func['command'])
+            self.make_card_clickable(icon_label, func['command'])
+            self.make_card_clickable(title_label, func['command'])
+            self.make_card_clickable(desc_label, func['command'])
+
+        # Configure grid weights
+        cards_frame.grid_columnconfigure((0, 1), weight=1)
+        cards_frame.grid_rowconfigure((0, 1), weight=1)
+
+    def make_card_clickable(self, widget, command):
+        """Make widget clickable with border highlight and hover effect"""
+
+        def is_default_fg(widget, default_color):
+            fg = widget.cget("fg_color")
+            if isinstance(fg, (list, tuple)):
+                return default_color in fg
+            return fg == default_color
+
+        def on_enter(event):
+            try:
+                if isinstance(widget, ctk.CTkFrame):
+                    if is_default_fg(widget, self.colors['card_bg']):
+                        widget.configure(
+                            border_color=self.colors['accent'],
+                            fg_color=self.colors['hover_bg']
+                        )
+            except Exception as e:
+                print(f"Error in on_enter: {e}")
+
+        def on_leave(event):
+            try:
+                if isinstance(widget, ctk.CTkFrame):
+                    widget.configure(
+                        border_color=self.colors['primary'],
+                        fg_color=self.colors['card_bg']
+                    )
+            except Exception as e:
+                print(f"Error in on_leave: {e}")
+
+        def on_click(event):
+            try:
+                command()
+            except Exception as e:
+                print(f"Error in on_click: {e}")
+
+        if isinstance(widget, ctk.CTkFrame):
+            widget.bind("<Button-1>", on_click)
+            widget.bind("<Enter>", on_enter)
+            widget.bind("<Leave>", on_leave)
+
+            if not widget.cget("border_width"):
+                widget.configure(border_width=2)
+
+
+
+
+    def show_attendance_dashboard(self):
+        """Show attendance dashboard in new window"""
+        dashboard_window = ctk.CTkToplevel(self.root)
+        dashboard_window.title("Bảng điểm danh")
+        dashboard_window.geometry("1200x800")
+        dashboard_window.configure(fg_color=self.colors['background'])
         
-        header_frame.pack(fill="x", padx=20, pady=20)
+        # Make window appear on top and grab focus
+        dashboard_window.transient(self.root)
+        dashboard_window.grab_set()
+        dashboard_window.focus_set()
+        dashboard_window.lift()
+        dashboard_window.attributes('-topmost', True)
+        dashboard_window.after(100, lambda: dashboard_window.attributes('-topmost', False))
 
-        # Add Class Selection Frame
+        # Header
+        header = ctk.CTkFrame(
+            dashboard_window,
+            height=60,
+            fg_color=self.colors['primary'],
+            corner_radius=0
+        )
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        ctk.CTkLabel(
+            header,
+            text="Bảng điểm danh hôm nay",
+            font=("Roboto", 24, "bold"),
+            text_color=self.colors['text_light']
+        ).pack(expand=True)
+
+        # Class selection frame
         class_frame = ctk.CTkFrame(
-            self.main_frame,
+            dashboard_window,
             fg_color=self.colors['card_bg'],
             corner_radius=15,
             height=60
         )
-        class_frame.pack(fill="x", padx=20, pady=(0, 20))
+        class_frame.pack(fill="x", padx=20, pady=20)
 
-        # Class Selection Controls
         controls_frame = ctk.CTkFrame(
             class_frame,
             fg_color="transparent"
@@ -178,74 +300,131 @@ class FaceAttendanceSystem:
             text_color=self.colors['text_dark']
         ).pack(side="left", padx=(20, 10))
 
-        # Class Selection Combobox
         self.class_var = tk.StringVar()
-        self.class_selector = ctk.CTkComboBox(
+        class_selector = ctk.CTkComboBox(
             controls_frame,
             values=self.get_class_list(),
             variable=self.class_var,
             width=200,
-            font=("Roboto", 14),
-            button_color=self.colors['primary'],
-            button_hover_color=self.colors['secondary'],
-            border_color=self.colors['primary'],
-            dropdown_hover_color=self.colors['secondary']
+            font=("Roboto", 14)
         )
-        self.class_selector.pack(side="left", padx=10)
-        self.class_selector.set("Tất cả các lớp")
+        class_selector.pack(side="left", padx=10)
+        class_selector.set("Tất cả các lớp")
 
-        # Bind class change event
-        self.class_var.trace('w', lambda *args: self.refresh_dashboard())
-
-        # Refresh Button
-        ctk.CTkButton(
+        refresh_btn = ctk.CTkButton(
             controls_frame,
             text="🔄 Làm mới",
-            command=self.refresh_dashboard,
+            command=lambda: self.populate_dashboard_table(tree, self.class_var.get()),
             font=("Roboto", 14),
             fg_color=self.colors['primary'],
             hover_color=self.colors['secondary'],
             width=120
-        ).pack(side="left", padx=10)
-        
+        )
+        refresh_btn.pack(side="left", padx=10)
 
-        # Statistics Cards with Animation
-        self.stats_frame = ctk.CTkFrame(
-            self.main_frame,
+        # Table frame
+        table_frame = ctk.CTkFrame(
+            dashboard_window,
+            fg_color=self.colors['card_bg'],
+            corner_radius=15
+        )
+        table_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+
+        # Create treeview
+        columns = ("Họ Tên", "Mã Sinh Viên", "Lớp", "Thời gian", "Trạng Thái")
+        tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show='headings',
+            style='Custom.Treeview'
+        )
+
+        # Style treeview
+        style = ttk.Style()
+        style.configure(
+            'Custom.Treeview',
+            background=self.colors['card_bg'],
+            foreground=self.colors['text_dark'],
+            rowheight=35,
+            font=("Roboto", 12),
+            fieldbackground=self.colors['card_bg']
+        )
+
+        for col in columns:
+            tree.heading(col, text=col, anchor='center')
+            tree.column(col, anchor='center', width=150)
+
+        # Scrollbar
+        scrollbar = ctk.CTkScrollbar(
+            table_frame,
+            orientation='vertical',
+            command=tree.yview
+        )
+        tree.configure(yscroll=scrollbar.set)
+
+        tree.pack(side='left', fill='both', expand=True, padx=20, pady=20)
+        scrollbar.pack(side='right', fill='y', padx=(0, 20), pady=20)
+
+        # Populate table
+        self.populate_dashboard_table(tree, "Tất cả các lớp")
+
+        # Bind class change
+        self.class_var.trace('w', lambda *args: self.populate_dashboard_table(tree, self.class_var.get()))
+
+    def show_statistics(self):
+        """Show statistics window"""
+        stats_window = ctk.CTkToplevel(self.root)
+        stats_window.title("Thống kê điểm danh")
+        stats_window.geometry("800x600")
+        stats_window.configure(fg_color=self.colors['background'])
+        
+        # Make window appear on top and grab focus
+        stats_window.transient(self.root)
+        stats_window.grab_set()
+        stats_window.focus_set()
+        stats_window.lift()
+        stats_window.attributes('-topmost', True)
+        stats_window.after(100, lambda: stats_window.attributes('-topmost', False))
+
+        # Header
+        header = ctk.CTkFrame(
+            stats_window,
+            height=60,
+            fg_color=self.colors['primary'],
+            corner_radius=0
+        )
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        ctk.CTkLabel(
+            header,
+            text="Thống kê điểm danh",
+            font=("Roboto", 24, "bold"),
+            text_color=self.colors['text_light']
+        ).pack(expand=True)
+
+        # Stats container
+        stats_container = ctk.CTkFrame(
+            stats_window,
             fg_color="transparent"
         )
-        self.stats_frame.pack(fill="x", padx=20, pady=20)
+        stats_container.pack(fill="both", expand=True, padx=20, pady=20)
 
+        # Get statistics
         stats = self.get_statistics()
-        self.create_stat_cards(stats)
-
-        # Create modern attendance table
-        self.create_attendance_table()
-
-    def update_time(self):
-        current_time = datetime.now().strftime('%B %d, %Y %H:%M:%S')
-        self.time_label.configure(text=f"Today is {current_time}")
-        self.root.after(1000, self.update_time) 
-
-    def refresh_dashboard(self):
-        """Refresh dashboard data based on selected class"""
-        selected_class = self.class_var.get()
-        stats = self.get_statistics(selected_class)
-        self.create_stat_cards(stats)
-        self.populate_attendance_table(selected_class)
-
-    def create_stat_cards(self, stats):
+        
+        # Create stat cards
         stats_data = [
             {
-                "title": "Tổng",
-                "value": stats["Total Students"],
+                "title": "Tổng sinh viên",
+                "value": stats["Total Students"], 
                 "icon": "👥",
                 "color": self.colors['primary']
             },
             {
                 "title": "Có mặt hôm nay",
                 "value": stats["Today's Attendance"],
-                "icon": "✅",
+                "icon": "✅", 
                 "color": self.colors['success']
             },
             {
@@ -258,13 +437,13 @@ class FaceAttendanceSystem:
 
         for i, data in enumerate(stats_data):
             card = ctk.CTkFrame(
-                self.stats_frame,
+                stats_container,
                 fg_color=self.colors['card_bg'],
                 corner_radius=15,
                 border_width=2,
                 border_color=data['color']
             )
-            card.grid(row=0, column=i, padx=10, pady=10, sticky="nsew")
+            card.grid(row=i//2, column=i%2, padx=20, pady=20, sticky="nsew")
 
             # Icon
             ctk.CTkLabel(
@@ -272,7 +451,7 @@ class FaceAttendanceSystem:
                 text=data['icon'],
                 font=("Segoe UI Emoji", 48),
                 text_color=data['color']
-            ).pack(pady=(20, 5))
+            ).pack(pady=(30, 10))
 
             # Value
             ctk.CTkLabel(
@@ -288,105 +467,22 @@ class FaceAttendanceSystem:
                 text=data['title'],
                 font=("Roboto", 16),
                 text_color=self.colors['text_dark']
-            ).pack(pady=(5, 20))
+            ).pack(pady=(5, 30))
 
-        # Configure grid
-        self.stats_frame.grid_columnconfigure((0,1,2), weight=1)
+        stats_container.grid_columnconfigure((0, 1), weight=1)
+        stats_container.grid_rowconfigure((0, 1, 2), weight=1)
 
-    def animate_cards(self):
-        def update_colors():
-            for card in self.stats_frame.winfo_children():
-                current_color = card.cget("border_color")
-                # Add subtle color animation
-                r = random.randint(-10, 10)
-                g = random.randint(-10, 10)
-                b = random.randint(-10, 10)
-                # Ensure color values stay within valid range
-                new_color = f"#{min(255, max(0, int(current_color[1:3], 16) + r)):02x}" \
-                           f"{min(255, max(0, int(current_color[3:5], 16) + g)):02x}" \
-                           f"{min(255, max(0, int(current_color[5:7], 16) + b)):02x}"
-                card.configure(border_color=new_color)
-            self.root.after(1000, update_colors)
-        
-        self.root.after(0, update_colors)
-
-    def create_attendance_table(self):
-        # Table Frame
-        table_frame = ctk.CTkFrame(
-            self.main_frame, 
-            fg_color='transparent'
-        )
-        table_frame.pack(fill='both', expand=True, pady=20, padx=20)  
-
-        # Table Title
-        ctk.CTkLabel(
-            table_frame, 
-            text="Điểm danh hôm nay",
-            font=("Helvetica", 22, "bold"),  
-            text_color=self.colors['text_dark']
-        ).pack(anchor='w', pady=(0, 20), padx=30)  
-
-        # Treeview
-        columns = ("Họ Tên", "Mã Sinh Viên", "Lớp", "Thời gian", "Trạng Thái")
-        self.tree = ttk.Treeview(
-            table_frame, 
-            columns=columns, 
-            show='headings', 
-            style='Custom.Treeview'
-        )
-
-        # Style for Treeview
-        style = ttk.Style()
-        style.theme_use('default')
-        style.configure(
-            'Custom.Treeview', 
-            background=self.colors['text_light'],
-            foreground=self.colors['text_dark'],
-            rowheight=40,  
-            font=("Helvetica", 12),  
-            fieldbackground=self.colors['text_light'],
-            bordercolor=self.colors['primary']  
-        )
-        style.map(
-            'Custom.Treeview', 
-            background=[('selected', self.colors['primary'])],
-            bordercolor=[('selected', self.colors['accent'])]  
-        )
-
-        # Column setup
-        for col in columns:
-            self.tree.heading(col, text=col, anchor='center')  
-            self.tree.column(col, anchor='center', width=130)  
-
-        # Scrollbar
-        scrollbar = ctk.CTkScrollbar(
-            table_frame, 
-            orientation='vertical', 
-            command=self.tree.yview
-        )
-        self.tree.configure(yscroll=scrollbar.set)
-
-        # Pack Table and Scrollbar
-        self.tree.pack(side='left', fill='both', expand=True, padx=(30, 0), pady=(0, 30))  
-        scrollbar.pack(side='right', fill='y', padx=(0, 30), pady=(0, 30)) 
-
-        # Populate Table (sample data)
-        self.populate_attendance_table()
-
-    def show_dashboard(self):
-        # Refresh statistics and table
-        selected_class = self.class_var.get()
-        stats = self.get_statistics(selected_class)
-        self.create_stat_cards(stats)
-        self.populate_attendance_table(selected_class)
-
-    # def open_settings(self):
-        
-    #     pass
+    def get_class_list(self):
+        """Get unique class names from students collection"""
+        try:
+            classes = self.db['students'].distinct('class')
+            return ["Tất cả các lớp"] + sorted(classes)
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể tải danh sách lớp: {str(e)}")
+            return ["Tất cả các lớp"]
 
     def get_statistics(self, selected_class="Tất cả các lớp"):
         try:
-            # Base queries
             student_query = {}
             attendance_query = {
                 'timestamp': {
@@ -395,7 +491,6 @@ class FaceAttendanceSystem:
                 }
             }
 
-            # Add class filter if specific class is selected
             if selected_class != "Tất cả các lớp":
                 student_query['class'] = selected_class
                 attendance_query['class'] = selected_class
@@ -416,14 +511,14 @@ class FaceAttendanceSystem:
             messagebox.showwarning("Thống kê", f"Không thể tải số liệu: {str(e)}")
             return {
                 "Total Students": "0",
-                "Today's Attendance": "0", 
+                "Today's Attendance": "0",
                 "Absent Today": "0"
             }
 
-    def populate_attendance_table(self, selected_class="Tất cả các lớp"):
+    def populate_dashboard_table(self, tree, selected_class="Tất cả các lớp"):
         # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        for item in tree.get_children():
+            tree.delete(item)
         
         def fetch_and_populate():
             try:
@@ -440,7 +535,7 @@ class FaceAttendanceSystem:
                 records = self.attendance_col.find(query).sort("timestamp", -1)
 
                 for record in records:
-                    self.tree.insert('', 'end', values=(
+                    tree.insert('', 'end', values=(
                         record.get('name', 'N/A'),
                         record.get('student_id', 'N/A'),
                         record.get('class', 'N/A'),
@@ -459,7 +554,7 @@ class FaceAttendanceSystem:
             except Exception as e:
                 messagebox.showerror("Lỗi", f"Không thể mở cửa sổ thêm sinh viên: {str(e)}")
 
-        threading.Thread(target=run_script, daemon=True).start()  # Run in a separate thread
+        threading.Thread(target=run_script, daemon=True).start()
 
     def open_attendance(self):
         def run_script():
@@ -468,11 +563,7 @@ class FaceAttendanceSystem:
             except Exception as e:
                 messagebox.showerror("Lỗi", f"Không thể mở cửa sổ điểm danh: {str(e)}")
 
-        threading.Thread(target=run_script, daemon=True).start()  # Run in a separate thread
-
-    def show_attendance_list(self):
-        # print("Loading attendance list...")
-        self.populate_attendance_table()
+        threading.Thread(target=run_script, daemon=True).start()
 
     def __del__(self):
         if hasattr(self, 'client'):
