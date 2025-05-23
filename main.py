@@ -16,7 +16,7 @@ class FaceAttendanceSystem:
         self.root = root
         self.root.title("Hệ thống nhận diện khuôn mặt")
         self.root.geometry("1366x768")
-        
+
         # Modern Color Palette
         self.colors = {
             'primary': "#00923F",       # Material Blue
@@ -34,11 +34,10 @@ class FaceAttendanceSystem:
             'card_bg': "#ffffff",
             'hover_bg': "#85f2b4",  # Màu khi hover
             'accent': "#00aaff",    # Màu border khi hover
-            # 'primary': "#dddddd"  # Màu chính
         }
 
         self.root.configure(bg=self.colors['background'])
-        
+
         # MongoDB Connection
         try:
             self.client = MongoClient('mongodb://localhost:27017/')
@@ -116,7 +115,7 @@ class FaceAttendanceSystem:
                 "description": "Thêm sinh viên mới"
             },
             {
-                "title": "Nhận diện", 
+                "title": "Nhận diện",
                 "icon": "📷",
                 "command": self.open_attendance,
                 "description": "Điểm danh khuôn mặt"
@@ -129,7 +128,7 @@ class FaceAttendanceSystem:
             },
             {
                 "title": "Thống kê",
-                "icon": "📊", 
+                "icon": "📊",
                 "command": self.show_statistics,
                 "description": "Thống kê điểm danh"
             }
@@ -139,7 +138,7 @@ class FaceAttendanceSystem:
         for i, func in enumerate(functions):
             row = i // 2
             col = i % 2
-            
+
             # Card Frame
             card = ctk.CTkFrame(
                 cards_frame,
@@ -243,7 +242,47 @@ class FaceAttendanceSystem:
             if not widget.cget("border_width"):
                 widget.configure(border_width=2)
 
+    def show_loading_screen(self, message="Đang tải...", title="Vui lòng chờ"):
+        """Creates and shows a loading screen."""
+        self.loading_window = ctk.CTkToplevel(self.root)
+        self.loading_window.title(title)
+        self.loading_window.geometry("300x150")
+        self.loading_window.configure(fg_color=self.colors['card_bg'])
 
+        # Center the loading window
+        self.loading_window.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (self.loading_window.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (self.loading_window.winfo_height() // 2)
+        self.loading_window.geometry(f"+{int(x)}+{int(y)}")
+
+        self.loading_window.transient(self.root)
+        self.loading_window.grab_set()
+        self.loading_window.resizable(False, False)
+
+        ctk.CTkLabel(
+            self.loading_window,
+            text=message,
+            font=("Roboto", 16, "bold"),
+            text_color=self.colors['text_dark']
+        ).pack(pady=20)
+
+        # Optional: Add a progress bar (indeterminate)
+        progressbar = ctk.CTkProgressBar(
+            self.loading_window,
+            orientation="horizontal",
+            mode="indeterminate",
+            height=10,
+            fg_color=self.colors['background'],
+            progress_color=self.colors['primary']
+        )
+        progressbar.pack(pady=10, padx=20, fill="x")
+        progressbar.start()
+
+    def hide_loading_screen(self):
+        """Hides and destroys the loading screen."""
+        if hasattr(self, 'loading_window') and self.loading_window.winfo_exists():
+            self.loading_window.destroy()
+            self.loading_window = None
 
 
     def show_attendance_dashboard(self):
@@ -252,7 +291,7 @@ class FaceAttendanceSystem:
         dashboard_window.title("Bảng điểm danh")
         dashboard_window.geometry("1200x800")
         dashboard_window.configure(fg_color=self.colors['background'])
-        
+
         # Make window appear on top and grab focus
         dashboard_window.transient(self.root)
         dashboard_window.grab_set()
@@ -377,7 +416,7 @@ class FaceAttendanceSystem:
         stats_window.title("Thống kê điểm danh")
         stats_window.geometry("800x600")
         stats_window.configure(fg_color=self.colors['background'])
-        
+
         # Make window appear on top and grab focus
         stats_window.transient(self.root)
         stats_window.grab_set()
@@ -412,19 +451,19 @@ class FaceAttendanceSystem:
 
         # Get statistics
         stats = self.get_statistics()
-        
+
         # Create stat cards
         stats_data = [
             {
                 "title": "Tổng sinh viên",
-                "value": stats["Total Students"], 
+                "value": stats["Total Students"],
                 "icon": "👥",
                 "color": self.colors['primary']
             },
             {
                 "title": "Có mặt hôm nay",
                 "value": stats["Today's Attendance"],
-                "icon": "✅", 
+                "icon": "✅",
                 "color": self.colors['success']
             },
             {
@@ -519,7 +558,7 @@ class FaceAttendanceSystem:
         # Clear existing items
         for item in tree.get_children():
             tree.delete(item)
-        
+
         def fetch_and_populate():
             try:
                 query = {
@@ -548,20 +587,26 @@ class FaceAttendanceSystem:
         threading.Thread(target=fetch_and_populate, daemon=True).start()
 
     def open_add_student(self):
+        self.show_loading_screen("Đang mở cửa sổ thêm sinh viên...", "Tải sinh viên")
         def run_script():
             try:
                 os.system('python client/recognize_face.py')
             except Exception as e:
                 messagebox.showerror("Lỗi", f"Không thể mở cửa sổ thêm sinh viên: {str(e)}")
+            finally:
+                self.root.after(100, self.hide_loading_screen) # Dùng after để đảm bảo chạy trên luồng chính
 
         threading.Thread(target=run_script, daemon=True).start()
 
     def open_attendance(self):
+        self.show_loading_screen("Đang mở cửa sổ điểm danh...", "Tải điểm danh")
         def run_script():
             try:
                 os.system('python client/capture_faces.py')
             except Exception as e:
                 messagebox.showerror("Lỗi", f"Không thể mở cửa sổ điểm danh: {str(e)}")
+            finally:
+                self.root.after(100, self.hide_loading_screen) # Dùng after để đảm bảo chạy trên luồng chính
 
         threading.Thread(target=run_script, daemon=True).start()
 
