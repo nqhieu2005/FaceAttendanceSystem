@@ -145,7 +145,7 @@ class AddStudentWindow:
         
         subtitle_label = tk.Label(
             title_container,
-            text="Add new student to the system",
+            text="Thêm sinh viên mới vào hệ thống",
             font=ModernStyle.SMALL_FONT,
             bg=ModernStyle.PRIMARY,
             fg=ModernStyle.LIGHT
@@ -383,7 +383,7 @@ class AddStudentWindow:
             self.start_camera_btn.configure(state='disabled', text="🎥 Camera Started")
             self.update_camera()
         else:
-            messagebox.showerror("Error", "Cannot open camera!")
+            messagebox.showerror("Lỗi", "Không thể mở camera!")
 
     def update_camera(self):
         if self.cap is not None and self.cap.isOpened():
@@ -452,7 +452,7 @@ class AddStudentWindow:
                 # Tạo thư mục dataset nếu chưa có
                 student_id = self.id_entry.get()
                 if not student_id:
-                    messagebox.showwarning("Warning", "Please enter Student ID first!")
+                    messagebox.showwarning("Cảnh báo", "Nhập mã sinh viên trước khi chụp ảnh!")
                     return
                     
                 dataset_dir = os.path.join("e:/NCKH2024_2025/FaceAttendanceSystem/dataset", student_id)
@@ -482,7 +482,7 @@ class AddStudentWindow:
                     
                     # Update status
                     self.camera_status.configure(
-                        text=f"Status: {self.photo_count}/5 photos captured",
+                        text=f"Status: {self.photo_count}/5 đã chụp",
                         fg=ModernStyle.SUCCESS
                     )
                     
@@ -490,13 +490,13 @@ class AddStudentWindow:
                     self.flash_effect()
                     
                 else:
-                    messagebox.showwarning("Warning", "No face detected! Please try again.")
+                    messagebox.showwarning("Cảnh báo", "Không phát hiện khuôn mặt. Vui lòng thử lại.")
 
                 if self.photo_count >= 5:
                     self.capture_btn.configure(state='disabled', bg=ModernStyle.GRAY)
                     self.save_btn.configure(state='normal', bg=ModernStyle.SUCCESS)
                     self.camera_status.configure(
-                        text="Status: All photos captured! Ready to save.",
+                        text="Status: Tất cả ảnh đã chụp! Sẵn sàng để lưu.",
                         fg=ModernStyle.WARNING
                     )
                     if self.cap:
@@ -513,20 +513,20 @@ class AddStudentWindow:
         try:
             # Kiểm tra thông tin đầu vào
             if not self.name_entry.get() or not self.id_entry.get() or not self.class_entry.get():
-                messagebox.showerror("Error", "Please fill in all student information!")
+                messagebox.showerror("Lỗi", "Hãy điền đầy đủ thông tin!")
                 return
 
             # Kiểm tra trùng lặp student_id
             if self.students_col.find_one({"student_id": self.id_entry.get()}):
-                messagebox.showerror("Error", "Student ID already exists! Please enter a different ID.")
+                messagebox.showerror("Lỗi", "MSV đã tồn tại!")
                 return
 
             if len(self.image_ids) < 5:
-                messagebox.showerror("Error", "Please capture all 5 photos!")
+                messagebox.showerror("Lỗi", "Hãy chụp đủ 5 ảnh!")
                 return
 
             if len(self.face_encodings) < 5:
-                messagebox.showerror("Error", "Not all photos contain faces. Please retake photos.")
+                messagebox.showerror("Lỗi", "Vui lòng chụp lại ảnh")
                 return
 
             # Tính trung bình face encodings
