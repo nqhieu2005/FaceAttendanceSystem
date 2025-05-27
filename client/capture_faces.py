@@ -39,9 +39,12 @@ class AttendanceWindow:
         style = ttk.Style()
         
         # Style cho header
-        style.configure("Header.TLabel", 
-                       font=('Segoe UI', 24, 'bold'),
-                       foreground='#27ae60')
+        style.configure("Header.TLabel",
+            background="#44cf44",  # nền xanh
+            foreground="white",    # chữ trắng
+            font=("Segoe UI", 24, "bold")
+        )
+
         
         # Style cho thông tin
         style.configure("Info.TLabel",
@@ -59,14 +62,15 @@ class AttendanceWindow:
 
     def create_widgets(self):
         # Header
-        header_frame = tk.Frame(self.root, bg='#f0f2f5', height=80)
+        header_frame = tk.Frame(self.root, bg="#44cf44", height=80)
         header_frame.pack(fill='x', pady=(0, 20))
         header_frame.pack_propagate(False)
-        
+
         header_label = ttk.Label(header_frame, 
-                                text="🌿 HỆ THỐNG ĐIỂM DANH SINH VIÊN",
+                                text="HỆ THỐNG ĐIỂM DANH SINH VIÊN",
                                 style="Header.TLabel")
         header_label.pack(expand=True)
+
         
         # Container chính
         main_container = tk.Frame(self.root, bg='#f0f2f5')
@@ -108,20 +112,32 @@ class AttendanceWindow:
         # Status indicator
         self.status_frame = tk.Frame(control_frame, bg='#ffffff')
         self.status_frame.pack(fill='x', pady=(0, 15))
-        
-        self.status_indicator = tk.Label(self.status_frame,
-                                        text="●",
-                                        font=('Segoe UI', 20),
-                                        fg='#e74c3c',
-                                        bg='#ffffff')
-        self.status_indicator.pack(side='left')
-        
-        self.status_text = tk.Label(self.status_frame,
-                                   text="Camera đang tắt",
-                                   font=('Segoe UI', 11, 'bold'),
-                                   fg='#e74c3c',
-                                   bg='#ffffff')
-        self.status_text.pack(side='left', padx=(10, 0))
+
+        # Frame con để xếp chấm đỏ và chữ cùng hàng
+        self.status_inner = tk.Frame(self.status_frame, bg='#ffffff')
+        self.status_inner.pack(anchor='center', pady=10)
+
+        # Chấm đỏ
+        self.status_indicator = tk.Label(
+            self.status_inner,
+            text="●",
+            font=('Segoe UI', 13),
+            fg='#e74c3c',
+            bg='#ffffff'
+        )
+        self.status_indicator.pack(side='left', padx=(0, 5))
+
+        # Dòng chữ
+        self.status_text = tk.Label(
+            self.status_inner,
+            text="Camera đang tắt",
+            font=('Segoe UI', 11, 'bold'),
+            fg='#e74c3c',
+            bg='#ffffff'
+        )
+        self.status_text.pack(side='left')
+
+
         
         # Buttons với style hiện đại
         self.start_btn = ttk.Button(control_frame,
