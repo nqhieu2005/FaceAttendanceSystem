@@ -332,12 +332,21 @@ class FaceAttendanceSystem:
         )
         controls_frame.pack(expand=True, pady=10)
 
+        # Date Label
+        date_label = ctk.CTkLabel(
+            controls_frame,
+            text=f"Ngày: {datetime.now().strftime('%d/%m/%Y')}",
+            font=("Roboto", 16, "bold"),
+            text_color=self.colors['text_dark']
+        )
+        date_label.pack(side="left", padx=(20, 20))
+
         ctk.CTkLabel(
             controls_frame,
             text="Lớp:",
             font=("Roboto", 16, "bold"),
             text_color=self.colors['text_dark']
-        ).pack(side="left", padx=(20, 10))
+        ).pack(side="left", padx=(0, 10))
 
         self.class_var = tk.StringVar()
         class_selector = ctk.CTkComboBox(
@@ -361,6 +370,18 @@ class FaceAttendanceSystem:
         )
         refresh_btn.pack(side="left", padx=10)
 
+        # Export Button
+        export_btn = ctk.CTkButton(
+            controls_frame,
+            text="📥 Xuất Excel",
+            command=lambda: self.export_to_excel(tree, self.class_var.get()),
+            font=("Roboto", 14),
+            fg_color=self.colors['success'],
+            hover_color=self.colors['secondary'],
+            width=120
+        )
+        export_btn.pack(side="left", padx=10)
+
         # Table frame
         table_frame = ctk.CTkFrame(
             dashboard_window,
@@ -370,7 +391,7 @@ class FaceAttendanceSystem:
         table_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
         # Create treeview
-        columns = ("Họ Tên", "Mã Sinh Viên", "Lớp", "Thời gian", "Trạng Thái")
+        columns = ("Họ Tên", "Mã Sinh Viên", "Lớp", "Ngày", "Thời gian", "Trạng Thái")
         tree = ttk.Treeview(
             table_frame,
             columns=columns,
@@ -561,30 +582,102 @@ class FaceAttendanceSystem:
 
         def fetch_and_populate():
             try:
-                query = {
+                # Get today's date range
+                today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                today_end = today_start + timedelta(days=1)
+
+                # Get all students
+                student_query = {}
+                if selected_class != "Tất cả các lớp":
+                    student_query['class'] = selected_class
+                
+                all_students = list(self.db['students'].find(student_query))
+                
+                # Get today's attendance records
+                attendance_query = {
                     'timestamp': {
-                        '$gte': datetime.now().replace(hour=0, minute=0, second=0, microsecond=0),
-                        '$lt': datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+                        '$gte': today_start,
+                        '$lt': today_end
                     }
                 }
-
                 if selected_class != "Tất cả các lớp":
-                    query['class'] = selected_class
-
-                records = self.attendance_col.find(query).sort("timestamp", -1)
-
-                for record in records:
+                    attendance_query['class'] = selected_class
+                
+                attendance_records = list(self.attendance_col.find(attendance_query))
+                
+                # Create a set of present student IDs
+                present_student_ids = {record['student_id'] for record in attendance_records}
+                
+                # First, add present students
+                for record in attendance_records:
+                    timestamp = record.get('timestamp', datetime.now())
                     tree.insert('', 'end', values=(
                         record.get('name', 'N/A'),
                         record.get('student_id', 'N/A'),
                         record.get('class', 'N/A'),
-                        record.get('timestamp', datetime.now()).strftime("%H:%M"),
-                        record.get('status', 'N/A')
-                    ))
+                        timestamp.strftime("%d/%m/%Y"),
+                        timestamp.strftime("%H:%M"),
+                        record.get('status', 'Có mặt')
+                    ), tags=('present',))
+                
+                # Then, add absent students
+                for student in all_students:
+                    if student['student_id'] not in present_student_ids:
+                        tree.insert('', 'end', values=(
+                            student.get('name', 'N/A'),
+                            student.get('student_id', 'N/A'),
+                            student.get('class', 'N/A'),
+                            datetime.now().strftime("%d/%m/%Y"),
+                            "N/A",
+                            "Vắng mặt"
+                        ), tags=('absent',))
+
+                # Configure tag colors
+                tree.tag_configure('present', background='#E8F5E9')  # Light green
+                tree.tag_configure('absent', background='#FFEBEE')  # Light red
+
             except Exception as e:
                 messagebox.showerror("Lỗi", f"Không thể tải danh sách điểm danh: {str(e)}")
 
         threading.Thread(target=fetch_and_populate, daemon=True).start()
+
+    def export_to_excel(self, tree, selected_class):
+        try:
+            import pandas as pd
+            from datetime import datetime
+
+            # Get all items from treeview
+            data = []
+            for item in tree.get_children():
+                values = tree.item(item)['values']
+                data.append({
+                    'Họ Tên': values[0],
+                    'Mã Sinh Viên': values[1],
+                    'Lớp': values[2],
+                    'Ngày': values[3],
+                    'Thời gian': values[4],
+                    'Trạng Thái': values[5]
+                })
+
+            # Create DataFrame
+            df = pd.DataFrame(data)
+
+            # Generate filename with current date
+            filename = f"diem_danh_{datetime.now().strftime('%d%m%Y')}.xlsx"
+            
+            # Ask user where to save the file
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                initialfile=filename,
+                filetypes=[("Excel files", "*.xlsx")]
+            )
+
+            if file_path:
+                # Export to Excel
+                df.to_excel(file_path, index=False, engine='openpyxl')
+                messagebox.showinfo("Thành công", f"Đã xuất file Excel thành công!\nĐường dẫn: {file_path}")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể xuất file Excel: {str(e)}")
 
     def open_add_student(self):
         self.show_loading_screen("Đang mở cửa sổ thêm sinh viên...", "Tải sinh viên")
